@@ -461,6 +461,30 @@ class Carspace_REST_API {
     }
 
     /* ------------------------------------------------------------------
+     * Response cache (transient-based, versioned keys)
+     *
+     * Heavy aggregate endpoints (/dashboard/stats, /users) cache their
+     * full response for a short TTL. The cache key embeds a global
+     * version stamp; any data-mutating event bumps the stamp via
+     * carspace_bust_data_cache(), which orphans all old entries.
+     * ----------------------------------------------------------------*/
+
+    const CACHE_TTL = 60; // seconds
+
+    private static function cache_version() {
+        // autoload=false option, written only by carspace_bust_data_cache().
+        return (int) get_option( 'carspace_data_cache_version', 1 );
+    }
+
+    private static function cache_get( $key ) {
+        return get_transient( $key );
+    }
+
+    private static function cache_set( $key, $data ) {
+        set_transient( $key, $data, self::CACHE_TTL );
+    }
+
+    /* ------------------------------------------------------------------
      * Role helpers
      * ----------------------------------------------------------------*/
 
@@ -1405,6 +1429,12 @@ class Carspace_REST_API {
     public static function get_users( $request ) {
         global $wpdb;
 
+        $cache_key = 'cs_users_v' . self::cache_version();
+        $cached    = self::cache_get( $cache_key );
+        if ( $cached !== false ) {
+            return new WP_REST_Response( $cached, 200 );
+        }
+
         // Fetch users with relevant roles
         $wp_users = get_users( array(
             'role__in' => array( 'administrator', 'editor', 'shop_manager', 'subscriber', 'customer' ),
@@ -1479,6 +1509,8 @@ class Carspace_REST_API {
             );
         }
 
+        self::cache_set( $cache_key, $items );
+
         return new WP_REST_Response( $items, 200 );
     }
 
@@ -1487,7 +1519,12 @@ class Carspace_REST_API {
      * ----------------------------------------------------------------*/
 
     public static function get_dashboard_stats( $request ) {
-        $user_id  = get_current_user_id();
+        $user_id   = get_current_user_id();
+        $cache_key = 'cs_stats_v' . self::cache_version() . '_u' . $user_id;
+        $cached    = self::cache_get( $cache_key );
+        if ( $cached !== false ) {
+            return new WP_REST_Response( $cached, 200 );
+        }
 
         // All users see only their assigned cars
         $posts = carspace_get_user_assigned_cars( $user_id );
@@ -1708,6 +1745,8 @@ class Carspace_REST_API {
             'monthly_revenue'       => $monthly_revenue,
             'recent_invoices'       => $recent_invoices,
         );
+
+        self::cache_set( $cache_key, $stats_data );
 
         return new WP_REST_Response( $stats_data, 200 );
     }

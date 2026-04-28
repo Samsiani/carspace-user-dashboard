@@ -2,7 +2,7 @@
 /*
 Plugin Name: Carspace User Dashboard
 Description: Car dealer CRM dashboard — React SPA with WordPress REST API backend
-Version: 5.4.0
+Version: 5.5.0
 Author: Carspace
 Text Domain: carspace-dashboard
 Domain Path: /languages
@@ -10,7 +10,7 @@ Domain Path: /languages
 
 defined('ABSPATH') || exit;
 
-define('CARSPACE_VERSION', '5.4.0');
+define('CARSPACE_VERSION', '5.5.0');
 define('CARSPACE_DB_VERSION', '1.5');
 define('CARSPACE_PATH', plugin_dir_path(__FILE__));
 define('CARSPACE_URL', plugin_dir_url(__FILE__));
@@ -170,3 +170,50 @@ class Carspace_Dashboard {
 
 // Boot
 Carspace_Dashboard::get_instance();
+
+/**
+ * Bump the global response-cache version stamp.
+ *
+ * Read by Carspace_REST_API::cache_version() to build cache keys, so any
+ * call here orphans every existing cached response without touching them.
+ * Used by the hooks below to invalidate /dashboard/stats and /users on
+ * data mutations. Stored as autoload=false to keep wp_options light.
+ */
+function carspace_bust_data_cache() {
+    update_option( 'carspace_data_cache_version', time(), false );
+}
+
+// Invoice CPT mutations.
+add_action( 'save_post_invoice', 'carspace_bust_data_cache' );
+add_action( 'deleted_post', function ( $post_id, $post = null ) {
+    if ( $post && $post->post_type === 'invoice' ) {
+        carspace_bust_data_cache();
+    }
+}, 10, 2 );
+
+// Car assignment / pricing meta changes that affect stats + user revenue.
+add_action( 'updated_post_meta', function ( $meta_id, $object_id, $meta_key ) {
+    static $tracked = array(
+        'assigned_user'  => 1,
+        '_regular_price' => 1,
+        '_price'         => 1,
+    );
+    if ( isset( $tracked[ $meta_key ] ) ) {
+        carspace_bust_data_cache();
+    }
+}, 10, 3 );
+add_action( 'added_post_meta', function ( $meta_id, $object_id, $meta_key ) {
+    static $tracked = array(
+        'assigned_user'  => 1,
+        '_regular_price' => 1,
+        '_price'         => 1,
+    );
+    if ( isset( $tracked[ $meta_key ] ) ) {
+        carspace_bust_data_cache();
+    }
+}, 10, 3 );
+
+// User-table changes that affect /users response.
+add_action( 'profile_update', 'carspace_bust_data_cache' );
+add_action( 'user_register', 'carspace_bust_data_cache' );
+add_action( 'delete_user', 'carspace_bust_data_cache' );
