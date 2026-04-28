@@ -1,0 +1,376 @@
+/**
+ * Carspace Dashboard Styles
+ * 
+ * Main stylesheet for the Carspace dashboard UI
+ *
+ * @package Carspace_Dashboard
+ * @version 3.3.0
+ */
+
+/* ----------------------------------------------------------------
+ * DASHBOARD CARDS
+ * ---------------------------------------------------------------- */
+.carspace-dashboard {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 30px 0;
+    padding: 0 10px;
+}
+
+.dashboard-box {
+    flex: 0 0 15%;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-box:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-box .icon {
+    font-size: 24px;
+    color: #2b7dfa;
+    margin-bottom: 10px;
+}
+
+.dashboard-box h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 5px;
+}
+
+.dashboard-box .value {
+    font-size: 16px;
+    font-weight: bold;
+    color: #111;
+}
+
+.dashboard-box-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+@media (max-width: 992px) {
+    .dashboard-box {
+        flex: 0 0 30%;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-box {
+        flex: 0 0 45%;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-box {
+        flex: 0 0 100%;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * TABLES
+ * ---------------------------------------------------------------- */
+
+/* Table Wrapper */
+.car-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    padding: 0 10px;
+    box-sizing: border-box;
+    margin-bottom: 30px;
+}
+
+/* Main Table */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    font-size: 13px;
+    margin: 20px 0;
+    border: 1px solid #dee2e6;
+    overflow: hidden;
+}
+
+/* Table Header */
+.table th {
+    padding: 8px 15px;
+    font-weight: 600;
+    color: #333;
+    text-transform: capitalize;
+    font-size: 13px;
+    white-space: nowrap;
+    border: 1px solid #dee2e6;
+}
+
+/* Table Rows */
+.table td {
+    padding: 6px 10px;
+    color: #444;
+    font-size: 12px;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
+    white-space: nowrap;
+}
+
+/* Zebra striping */
+.table tbody tr.odd {
+    background-color: #ffffff;
+}
+
+.table tbody tr.even {
+    background-color: #f9fbfd;
+}
+
+/* Hover effect */
+.table tbody tr:hover {
+    background-color: #eef4ff;
+    transition: background-color 0.2s ease;
+}
+
+/* Image inside Table */
+.table img {
+    width: 50px;
+    height: auto;
+    object-fit: cover;
+}
+
+/* Links inside Table */
+.table a {
+    color: #2b7dfa;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.table a:hover {
+    text-decoration: underline;
+}
+
+/* Sorting Indicators */
+.table th.sortable {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+}
+
+.table th.sortable::after {
+    content: '⇅';
+    font-size: 10px;
+    position: absolute;
+    right: 5px;
+    color: #888;
+    opacity: 0.4;
+}
+
+.table th.sortable.asc::after {
+    content: '▲';
+    opacity: 1;
+}
+
+.table th.sortable.desc::after {
+    content: '▼';
+    opacity: 1;
+}
+
+/* Table action buttons */
+.table .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* ----------------------------------------------------------------
+ * NOTIFICATIONS
+ * ---------------------------------------------------------------- */
+.notification-list {
+    margin: 0;
+    padding: 0;
+}
+
+.notification-item {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.notification-item.unread {
+    border-left: 3px solid #2b7dfa !important;
+}
+
+.notification-item.read {
+    opacity: 0.7;
+}
+
+.notification-icon {
+    color: #2b7dfa;
+}
+
+.notification-message {
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.mark-read-btn {
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.notification-item:hover .mark-read-btn {
+    opacity: 1;
+}
+
+/* ----------------------------------------------------------------
+ * INVOICE STATS
+ * ---------------------------------------------------------------- */
+.invoice-stats .card {
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+.invoice-stats .card:hover {
+    transform: translateY(-5px);
+}
+
+.invoice-stats .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Invoice status indicators */
+.status-paid {
+    color: #28a745;
+}
+
+.status-unpaid {
+    color: #dc3545;
+}
+
+/* ----------------------------------------------------------------
+ * MODALS
+ * ---------------------------------------------------------------- */
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Gallery grid */
+.modal .row.g-2 {
+    margin: -0.5rem;
+}
+
+.modal .row.g-2 > div {
+    padding: 0.5rem;
+}
+
+.modal .img-thumbnail {
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.modal .img-thumbnail:hover {
+    transform: scale(1.05);
+}
+
+/* GLightbox customizations */
+.glightbox-clean .gslide-description {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+/* ----------------------------------------------------------------
+ * RESPONSIVE ADJUSTMENTS
+ * ---------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .car-table-wrapper {
+        padding: 0;
+    }
+    
+    .table thead th {
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    
+    .table tbody td {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+    
+    .table .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.7rem;
+    }
+}
+
+/* ----------------------------------------------------------------
+ * UTILITY CLASSES
+ * ---------------------------------------------------------------- */
+.text-muted-custom {
+    color: #6c757d !important;
+    font-size: 0.85rem;
+}
+
+.updated-timestamp {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 2rem;
+    text-align: right;
+    font-style: italic;
+}
+
+
+/* ----------------------------------------------------------------
+ * GLIGHTBOX CUSTOMIZATIONS
+ * ---------------------------------------------------------------- */
+.gslide-image img {
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.gslide-desc {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.glightbox-clean .gslide-description {
+    background: transparent;
+}
+
+.gslide-title {
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.glightbox-container .gclose {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+}
+
+.glightbox-container .gnext, 
+.glightbox-container .gprev {
+    background: rgba(0, 0, 0, 0.5);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+}
+
+/* Make thumbnails in modal appear clickable */
+.modal .img-thumbnail {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 3px solid transparent;
+}
+
+.modal .img-thumbnail:hover {
+    border-color: #0d6efd;
+    transform: scale(1.05);
+}

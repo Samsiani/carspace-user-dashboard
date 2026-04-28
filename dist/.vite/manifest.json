@@ -1,0 +1,71 @@
+{
+  "node_modules/@fontsource-variable/geist/files/geist-cyrillic-wght-normal.woff2": {
+    "file": "assets/geist-cyrillic-wght-normal-CHSlOQsW.woff2",
+    "src": "node_modules/@fontsource-variable/geist/files/geist-cyrillic-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2": {
+    "file": "assets/geist-latin-ext-wght-normal-DMtmJ5ZE.woff2",
+    "src": "node_modules/@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2": {
+    "file": "assets/geist-latin-wght-normal-Dm3htQBi.woff2",
+    "src": "node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2"
+  },
+  "src/data/cars.ts": {
+    "file": "assets/cars-DhELNNXU.js",
+    "name": "cars",
+    "src": "src/data/cars.ts",
+    "isDynamicEntry": true
+  },
+  "src/data/invoices.ts": {
+    "file": "assets/invoices-mD6gUF_p.js",
+    "name": "invoices",
+    "src": "src/data/invoices.ts",
+    "isDynamicEntry": true
+  },
+  "src/data/notifications.ts": {
+    "file": "assets/notifications-B4rRio-j.js",
+    "name": "notifications",
+    "src": "src/data/notifications.ts",
+    "isDynamicEntry": true
+  },
+  "src/data/tickets.ts": {
+    "file": "assets/tickets-D16U2mln.js",
+    "name": "tickets",
+    "src": "src/data/tickets.ts",
+    "isDynamicEntry": true
+  },
+  "src/data/users.ts": {
+    "file": "assets/users-BKlPiPa8.js",
+    "name": "users",
+    "src": "src/data/users.ts",
+    "isDynamicEntry": true
+  },
+  "src/main.tsx": {
+    "file": "assets/main-CixvmiSu.js",
+    "name": "main",
+    "src": "src/main.tsx",
+    "isEntry": true,
+    "dynamicImports": [
+      "src/data/cars.ts",
+      "src/data/cars.ts",
+      "src/data/invoices.ts",
+      "src/data/invoices.ts",
+      "src/data/notifications.ts",
+      "src/data/notifications.ts",
+      "src/data/tickets.ts",
+      "src/data/tickets.ts",
+      "src/data/users.ts",
+      "src/data/cars.ts",
+      "src/data/invoices.ts"
+    ],
+    "css": [
+      "assets/main-D-znYBLB.css"
+    ],
+    "assets": [
+      "assets/geist-cyrillic-wght-normal-CHSlOQsW.woff2",
+      "assets/geist-latin-ext-wght-normal-DMtmJ5ZE.woff2",
+      "assets/geist-latin-wght-normal-Dm3htQBi.woff2"
+    ]
+  }
+}

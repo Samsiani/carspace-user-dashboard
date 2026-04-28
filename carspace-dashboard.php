@@ -1,0 +1,172 @@
+<?php
+/*
+Plugin Name: Carspace User Dashboard
+Description: Car dealer CRM dashboard — React SPA with WordPress REST API backend
+Version: 5.4.0
+Author: Carspace
+Text Domain: carspace-dashboard
+Domain Path: /languages
+*/
+
+defined('ABSPATH') || exit;
+
+define('CARSPACE_VERSION', '5.4.0');
+define('CARSPACE_DB_VERSION', '1.5');
+define('CARSPACE_PATH', plugin_dir_path(__FILE__));
+define('CARSPACE_URL', plugin_dir_url(__FILE__));
+define('CARSPACE_BASENAME', plugin_basename(__FILE__));
+
+/**
+ * Main plugin class — React SPA dashboard with WP REST API backend.
+ *
+ * All frontend rendering is handled by the React app loaded via [carspace_app] shortcode.
+ * No WooCommerce My Account endpoints or legacy PHP/Bootstrap UI.
+ */
+class Carspace_Dashboard {
+
+    private static $instance = null;
+
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    private function __construct() {
+        $this->include_files();
+        $this->register_hooks();
+    }
+
+    private function include_files() {
+        // Database activator
+        require_once CARSPACE_PATH . 'includes/class-carspace-activator.php';
+
+        // Models
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-invoice.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-notification.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-port-images.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-transport-price.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-ticket.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-title-code.php';
+        require_once CARSPACE_PATH . 'includes/models/class-carspace-auction-fee.php';
+
+        // REST API (serves data to React SPA)
+        require_once CARSPACE_PATH . 'includes/class-carspace-rest-api.php';
+
+        // Frontend (React SPA shortcode loader)
+        require_once CARSPACE_PATH . 'includes/class-carspace-frontend.php';
+
+        // Standalone shortcodes (embeddable widgets)
+        require_once CARSPACE_PATH . 'includes/class-carspace-auction-fee-shortcode.php';
+
+        // Admin pages
+        require_once CARSPACE_PATH . 'includes/class-carspace-admin.php';
+
+        // Port images metabox (product edit screen)
+        require_once CARSPACE_PATH . 'includes/class-carspace-port-images-metabox.php';
+
+        // Car assignment metabox (product edit screen)
+        require_once CARSPACE_PATH . 'includes/class-carspace-assign-user-metabox.php';
+
+        // Utility functions (used by REST API)
+        require_once CARSPACE_PATH . 'includes/helpers/utils.php';
+
+        // Notification helper functions (used by notification hooks)
+        require_once CARSPACE_PATH . 'includes/helpers/notifications.php';
+
+        // Notification triggers (backend hooks — fire on car assignment, delivery, invoice creation)
+        require_once CARSPACE_PATH . 'includes/notifications/init.php';
+
+        // WP-CLI migration command
+        if (defined('WP_CLI') && WP_CLI) {
+            require_once CARSPACE_PATH . 'includes/class-carspace-migration.php';
+        }
+    }
+
+    private function register_hooks() {
+        // DB upgrade check
+        add_action('plugins_loaded', array('Carspace_Activator', 'maybe_upgrade'));
+
+        // Register [carspace_app] shortcode
+        add_action('init', array('Carspace_Frontend', 'init'));
+
+        // REST API endpoints
+        Carspace_REST_API::init();
+
+        // Admin menu
+        Carspace_Admin::init();
+
+        // Standalone shortcodes
+        Carspace_Auction_Fee_Shortcode::init();
+
+        // Port images metabox on product edit
+        Carspace_Port_Images_Metabox::init();
+
+        // Car assignment metabox on product edit
+        Carspace_Assign_User_Metabox::init();
+
+        // Legacy shortcode alias
+        add_shortcode('carspace_dashboard', array($this, 'render_dashboard_shortcode'));
+
+        // Invoice CPT
+        add_action('init', array($this, 'register_invoice_cpt'));
+
+        // Clean up custom table data when invoice post is deleted
+        add_action('before_delete_post', array($this, 'cleanup_invoice_data'));
+
+        // Activation
+        register_activation_hook(__FILE__, array($this, 'plugin_activation'));
+    }
+
+    public function register_invoice_cpt() {
+        if (!post_type_exists('invoice')) {
+            register_post_type('invoice', array(
+                'public'       => false,
+                'show_ui'      => true,
+                'supports'     => array('title', 'editor'),
+                'menu_icon'    => 'dashicons-media-text',
+                'labels'       => array(
+                    'name'               => __('Invoices', 'carspace-dashboard'),
+                    'singular_name'      => __('Invoice', 'carspace-dashboard'),
+                    'menu_name'          => __('Invoices', 'carspace-dashboard'),
+                    'add_new'            => __('Add New', 'carspace-dashboard'),
+                    'add_new_item'       => __('Add New Invoice', 'carspace-dashboard'),
+                    'edit_item'          => __('Edit Invoice', 'carspace-dashboard'),
+                    'new_item'           => __('New Invoice', 'carspace-dashboard'),
+                    'view_item'          => __('View Invoice', 'carspace-dashboard'),
+                    'search_items'       => __('Search Invoices', 'carspace-dashboard'),
+                    'not_found'          => __('No invoices found', 'carspace-dashboard'),
+                    'not_found_in_trash' => __('No invoices found in trash', 'carspace-dashboard'),
+                ),
+            ));
+        }
+    }
+
+    public function render_dashboard_shortcode() {
+        return Carspace_Frontend::render_shortcode();
+    }
+
+    public function cleanup_invoice_data($post_id) {
+        if (get_post_type($post_id) !== 'invoice') return;
+
+        global $wpdb;
+        $invoice = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM {$wpdb->prefix}carspace_invoices WHERE post_id = %d",
+            $post_id
+        ));
+        if ($invoice) {
+            $wpdb->delete($wpdb->prefix . 'carspace_invoice_items', array('invoice_id' => $invoice->id), array('%d'));
+            $wpdb->delete($wpdb->prefix . 'carspace_invoices', array('post_id' => $post_id), array('%d'));
+        }
+    }
+
+    public function plugin_activation() {
+        Carspace_Activator::activate();
+        flush_rewrite_rules();
+        update_option('carspace_dashboard_version', CARSPACE_VERSION);
+    }
+}
+
+// Boot
+Carspace_Dashboard::get_instance();
