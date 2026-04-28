@@ -4,7 +4,7 @@ Tags: dashboard, crm, woocommerce, react, spa, car-dealer
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.9.0
+Stable tag: 5.9.1
 License: Proprietary
 License URI: https://artcase.ge
 
@@ -19,6 +19,10 @@ Replaces the WooCommerce My Account dashboard with a self-contained React single
 * Auto-updates from GitHub Releases (no .org plugin directory needed)
 
 == Changelog ==
+
+= 5.9.1 =
+* Fix blank dashboard on v5.9.0 caused by an `Uncaught TypeError: O is not a function` in the recharts chunk. The previous Vite manualChunks config split `recharts` and `d3-*` into one bucket while their bundled-d3 helper `victory-vendor` fell into the catch-all `vendor` chunk — that chunk boundary in the middle of recharts' cyclical d3 imports broke runtime evaluation. Drops the manualChunks catch-all and lets Rollup attach lazy-route-only deps (recharts → DashboardPage, react-day-picker → date filters, @tanstack/react-table → grids, react-hook-form/zod → forms) to whichever lazy chunk imports them. First paint goes from ~265 KB gz to ~225 KB gz on non-dashboard routes.
+* No PHP / DB changes.
 
 = 5.9.0 =
 * React SPA bundle split. The single 1.6 MB main bundle is gone — first paint now downloads ~265 KB gzipped (main + react-vendor + vendor) instead of ~468 KB. Each route is its own chunk loaded on demand:
