@@ -214,16 +214,19 @@ class Carspace_Invoice {
     public static function get_by_vin($vin) {
         global $wpdb;
 
-        $vin = trim($vin);
-        if (empty($vin)) {
+        $vin = strtolower(trim($vin));
+        if ($vin === '') {
             return array();
         }
 
+        // it.vin_lower is a STORED generated column on LOWER(vin) — see
+        // Carspace_Activator::add_vin_lower_column(). Indexed by
+        // idx_vin_lower_invoice (vin_lower, invoice_id).
         return $wpdb->get_results($wpdb->prepare(
             "SELECT i.*, it.amount AS item_amount, it.vin AS item_vin
              FROM {$wpdb->prefix}carspace_invoices i
              INNER JOIN {$wpdb->prefix}carspace_invoice_items it ON it.invoice_id = i.id
-             WHERE LOWER(it.vin) = LOWER(%s)",
+             WHERE it.vin_lower = %s",
             $vin
         ));
     }
@@ -241,9 +244,9 @@ class Carspace_Invoice {
             "SELECT i.customer_name, i.customer_company_name, i.customer_type
              FROM {$wpdb->prefix}carspace_invoices i
              INNER JOIN {$wpdb->prefix}carspace_invoice_items it ON it.invoice_id = i.id
-             WHERE LOWER(it.vin) = LOWER(%s)
+             WHERE it.vin_lower = %s
              LIMIT 1",
-            trim($vin)
+            strtolower(trim($vin))
         ));
 
         if (!$row) {
@@ -286,6 +289,8 @@ class Carspace_Invoice {
 
         $placeholders = implode(',', array_fill(0, count($vins_clean), '%s'));
 
+        // $vins_clean is already lowercased above. Match against
+        // it.vin_lower so the query hits idx_vin_lower_invoice.
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT i.post_id, i.invoice_type, i.status, i.customer_name, i.customer_company_name,
                     i.customer_type, i.dealer_fee, i.commission, i.subtotal,
@@ -294,7 +299,7 @@ class Carspace_Invoice {
              FROM {$wpdb->prefix}carspace_invoices i
              INNER JOIN {$wpdb->prefix}carspace_invoice_items it ON it.invoice_id = i.id
              LEFT JOIN {$wpdb->posts} p ON p.ID = i.post_id
-             WHERE LOWER(it.vin) IN ({$placeholders})",
+             WHERE it.vin_lower IN ({$placeholders})",
             $vins_clean
         ));
 

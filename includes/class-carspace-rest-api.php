@@ -1632,11 +1632,21 @@ class Carspace_REST_API {
                 );
             }
 
-            if ( ! empty( $user_vins ) ) {
-                $vin_placeholders = implode( ',', array_fill( 0, count( $user_vins ), '%s' ) );
+            // Lowercase the SKU values so the query matches it.vin_lower
+            // and benefits from idx_vin_lower_invoice. Filter empties.
+            $user_vins_lower = array();
+            foreach ( $user_vins as $v ) {
+                $v = strtolower( trim( $v ) );
+                if ( $v !== '' ) {
+                    $user_vins_lower[] = $v;
+                }
+            }
+
+            if ( ! empty( $user_vins_lower ) ) {
+                $vin_placeholders = implode( ',', array_fill( 0, count( $user_vins_lower ), '%s' ) );
                 $matched_ids = $wpdb->get_col( $wpdb->prepare(
-                    "SELECT DISTINCT invoice_id FROM {$itm_table} WHERE vin IN ({$vin_placeholders})",
-                    $user_vins
+                    "SELECT DISTINCT invoice_id FROM {$itm_table} WHERE vin_lower IN ({$vin_placeholders})",
+                    $user_vins_lower
                 ) );
             } else {
                 $matched_ids = array();

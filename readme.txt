@@ -4,7 +4,7 @@ Tags: dashboard, crm, woocommerce, react, spa, car-dealer
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.7.1
+Stable tag: 5.8.0
 License: Proprietary
 License URI: https://artcase.ge
 
@@ -19,6 +19,10 @@ Replaces the WooCommerce My Account dashboard with a self-contained React single
 * Auto-updates from GitHub Releases (no .org plugin directory needed)
 
 == Changelog ==
+
+= 5.8.0 =
+* DB v1.9: add `vin_lower` STORED generated column on `wp_carspace_invoice_items` plus a new compound index `(vin_lower, invoice_id)`. Every VIN lookup (in `get_by_vin`, `get_buyer_by_vin`, `batch_vin_lookup`, and `get_dashboard_stats`) was rewritten to compare against `vin_lower` directly, removing the `LOWER(it.vin)` function call that previously defeated the index. The old `idx_vin_invoice (vin, invoice_id)` is dropped — it's no longer referenced by any query and was costing write overhead on every invoice item insert.
+* No data change: the column is computed from the existing `vin` column at write time by MariaDB itself, so existing rows are populated automatically.
 
 = 5.7.1 =
 * Add this readme.txt so WordPress shows the plugin description and changelog on the Plugins page and in update notifications.

@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 
 class Carspace_Activator {
 
-    const DB_VERSION = '1.8';
+    const DB_VERSION = '1.9';
 
     /**
      * Run on activation and on plugins_loaded when DB version changes.
@@ -20,6 +20,7 @@ class Carspace_Activator {
         self::create_tables();
         self::add_indexes();
         self::drop_redundant_indexes();
+        self::add_vin_lower_column();
         self::migrate_user_tiers();
         update_option('carspace_db_version', self::DB_VERSION);
     }
@@ -198,7 +199,7 @@ class Carspace_Activator {
 
         $indexes = array(
             array($wpdb->prefix . 'carspace_invoices', 'idx_status_owner', '(status, owner_user_id)'),
-            array($wpdb->prefix . 'carspace_invoice_items', 'idx_vin_invoice', '(vin, invoice_id)'),
+            // VIN lookups now use vin_lower instead — see add_vin_lower_column().
             array($wpdb->prefix . 'carspace_notifications', 'idx_user_status_visible', '(user_id, status, visible_until)'),
             array($wpdb->prefix . 'carspace_tickets', 'idx_author_status', '(author_id, status)'),
             array($wpdb->prefix . 'carspace_ticket_messages', 'idx_ticket_created', '(ticket_id, created_at)'),
@@ -245,6 +246,57 @@ class Carspace_Activator {
             if ($exists) {
                 $wpdb->query("ALTER TABLE `{$table}` DROP INDEX `{$name}`");
             }
+        }
+    }
+
+    /**
+     * DB v1.9: add `vin_lower` generated column + compound index, retire idx_vin_invoice.
+     *
+     * Every VIN lookup in this plugin uses LOWER(it.vin) IN (...) — that pattern
+     * defeats the index because LOWER() is a function on the indexed column. By
+     * persisting the lowercased value in a STORED generated column, the existing
+     * queries (after a tiny rewrite) become straight equality lookups that hit
+     * the new compound index on (vin_lower, invoice_id).
+     *
+     * MariaDB 10.2+ / MySQL 5.7+ required — both have been WP-baseline since 2018.
+     * Idempotent — checks INFORMATION_SCHEMA before each ALTER.
+     */
+    private static function add_vin_lower_column() {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'carspace_invoice_items';
+
+        // 1. Add the generated column.
+        $col_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(1) FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'vin_lower'",
+            DB_NAME, $table
+        ));
+        if (!$col_exists) {
+            $wpdb->query("ALTER TABLE `{$table}`
+                ADD COLUMN vin_lower VARCHAR(20) GENERATED ALWAYS AS (LOWER(vin)) STORED AFTER vin");
+        }
+
+        // 2. Add the compound index (vin_lower, invoice_id).
+        $idx_exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = 'idx_vin_lower_invoice'",
+            DB_NAME, $table
+        ));
+        if (!$idx_exists) {
+            $wpdb->query("ALTER TABLE `{$table}` ADD INDEX idx_vin_lower_invoice (vin_lower, invoice_id)");
+        }
+
+        // 3. Drop the now-unused idx_vin_invoice — every VIN query was rewritten
+        //    to use vin_lower, and idx_vin_lower_invoice covers the same access
+        //    patterns. Saves write overhead on every invoice item insert.
+        $old_idx = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = 'idx_vin_invoice'",
+            DB_NAME, $table
+        ));
+        if ($old_idx) {
+            $wpdb->query("ALTER TABLE `{$table}` DROP INDEX idx_vin_invoice");
         }
     }
 
