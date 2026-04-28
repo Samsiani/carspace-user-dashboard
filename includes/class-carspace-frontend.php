@@ -132,6 +132,19 @@ class Carspace_Frontend {
             }
         }
 
+        // Data-chunk modulepreloads — each src/data/*.ts compiles to its own
+        // dynamically-imported chunk. They're always loaded on first nav, so
+        // hint the browser to fetch them in parallel with main.js instead of
+        // waiting for main.js to parse and request them.
+        $module_preloads = '';
+        foreach ($manifest as $entry_data) {
+            if (!is_array($entry_data) || empty($entry_data['file']) || empty($entry_data['isDynamicEntry'])) {
+                continue;
+            }
+            $chunk_url = esc_url($dist_url . $entry_data['file']);
+            $module_preloads .= '    <link rel="modulepreload" href="' . $chunk_url . '" crossorigin />' . "\n";
+        }
+
         // Site title for <title> tag
         $site_name = get_bloginfo('name');
 
@@ -147,6 +160,7 @@ class Carspace_Frontend {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title><?php echo esc_html($site_name); ?> — Dashboard</title>
     <script type="module" crossorigin src="<?php echo $js_url; ?>"></script>
+<?php echo $module_preloads; ?>
 <?php echo $font_preloads; ?>
 <?php echo $css_tags; ?>
 </head>

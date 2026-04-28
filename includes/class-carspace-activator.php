@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 
 class Carspace_Activator {
 
-    const DB_VERSION = '1.7';
+    const DB_VERSION = '1.8';
 
     /**
      * Run on activation and on plugins_loaded when DB version changes.
@@ -19,6 +19,7 @@ class Carspace_Activator {
     public static function activate() {
         self::create_tables();
         self::add_indexes();
+        self::drop_redundant_indexes();
         self::migrate_user_tiers();
         update_option('carspace_db_version', self::DB_VERSION);
     }
@@ -79,8 +80,8 @@ class Carspace_Activator {
             amount      DECIMAL(12,2) DEFAULT 0,
             paid        DECIMAL(12,2) DEFAULT 0,
             sort_order  TINYINT UNSIGNED DEFAULT 0,
-            KEY idx_invoice_id (invoice_id),
-            KEY idx_vin (vin)
+            KEY idx_invoice_id (invoice_id)
+            /* idx_vin removed in DB v1.8 — superseded by idx_vin_invoice (vin, invoice_id). */
         ) {$charset_collate};");
 
         // 3. Notifications
@@ -94,8 +95,8 @@ class Carspace_Activator {
             link          VARCHAR(500),
             visible_until DATETIME NULL,
             created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-            KEY idx_user_status (user_id, status),
             KEY idx_created (created_at)
+            /* idx_user_status removed in DB v1.8 — superseded by idx_user_status_visible (user_id, status, visible_until). */
         ) {$charset_collate};");
 
         // 4. Port images
@@ -211,6 +212,38 @@ class Carspace_Activator {
             ));
             if (!$exists) {
                 $wpdb->query("ALTER TABLE `{$table}` ADD INDEX `{$name}` {$columns}");
+            }
+        }
+    }
+
+    /**
+     * Drop indexes superseded by compound indexes added in add_indexes().
+     *
+     * idx_vin_invoice (vin, invoice_id) covers all queries that idx_vin (vin)
+     * served, by leftmost-prefix matching.
+     * idx_user_status_visible (user_id, status, visible_until) covers all
+     * queries that idx_user_status (user_id, status) served.
+     * Removing the shorter indexes saves write overhead on every notification
+     * insert / status change and on every invoice item insert.
+     *
+     * Idempotent — checks INFORMATION_SCHEMA before dropping.
+     */
+    private static function drop_redundant_indexes() {
+        global $wpdb;
+
+        $drops = array(
+            array($wpdb->prefix . 'carspace_invoice_items', 'idx_vin'),
+            array($wpdb->prefix . 'carspace_notifications', 'idx_user_status'),
+        );
+
+        foreach ($drops as $row) {
+            list($table, $name) = $row;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s",
+                DB_NAME, $table, $name
+            ));
+            if ($exists) {
+                $wpdb->query("ALTER TABLE `{$table}` DROP INDEX `{$name}`");
             }
         }
     }

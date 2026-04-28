@@ -1619,11 +1619,6 @@ class Carspace_REST_API {
         $inv_table = $wpdb->prefix . 'carspace_invoices';
         $itm_table = $wpdb->prefix . 'carspace_invoice_items';
 
-        // Invoice stats — managers see all, others see only invoices matching their assigned cars' VINs
-        global $wpdb;
-        $inv_table = $wpdb->prefix . 'carspace_invoices';
-        $itm_table = $wpdb->prefix . 'carspace_invoice_items';
-
         // For non-managers: get matching invoice IDs via VIN lookup
         $is_mgr       = self::is_manager();
         $inv_id_where = '';
@@ -2791,13 +2786,16 @@ class Carspace_REST_API {
 
         $option_name = 'carspace_invoice_counter';
 
-        // Atomic increment — if option exists, increment and return
+        // Atomic increment — if option exists, increment and return.
+        // The raw UPDATE bypasses WP's option cache, so drop the stale entry
+        // first; otherwise get_option() returns the pre-increment value.
         $updated = $wpdb->query( $wpdb->prepare(
             "UPDATE {$wpdb->options} SET option_value = option_value + 1 WHERE option_name = %s",
             $option_name
         ) );
 
         if ( $updated ) {
+            wp_cache_delete( $option_name, 'options' );
             return (int) get_option( $option_name );
         }
 

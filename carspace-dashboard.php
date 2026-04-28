@@ -2,7 +2,7 @@
 /*
 Plugin Name: Carspace User Dashboard
 Description: Car dealer CRM dashboard — React SPA with WordPress REST API backend
-Version: 5.6.0
+Version: 5.7.0
 Author: Carspace
 Text Domain: carspace-dashboard
 Domain Path: /languages
@@ -10,7 +10,7 @@ Domain Path: /languages
 
 defined('ABSPATH') || exit;
 
-define('CARSPACE_VERSION', '5.6.0');
+define('CARSPACE_VERSION', '5.7.0');
 define('CARSPACE_DB_VERSION', '1.5');
 define('CARSPACE_PATH', plugin_dir_path(__FILE__));
 define('CARSPACE_URL', plugin_dir_url(__FILE__));
@@ -170,6 +170,27 @@ class Carspace_Dashboard {
 
 // Boot
 Carspace_Dashboard::get_instance();
+
+/**
+ * GitHub Releases auto-update via plugin-update-checker.
+ *
+ * PUC polls https://api.github.com/repos/Samsiani/carspace-user-dashboard/releases
+ * and surfaces new versions through WP's native update flow (Plugins page +
+ * update-core.php). The plugin slug MUST stay 'carspace-dashboard' — that is
+ * the folder name on disk, and changing it breaks the update path matching.
+ *
+ * The release-asset path is enabled with no arguments so PUC picks the first
+ * .zip attached to a release (our workflow attaches carspace-dashboard-vX.Y.Z.zip
+ * which extracts to ./carspace-dashboard/, matching the install location).
+ */
+require_once CARSPACE_PATH . 'lib/plugin-update-checker/plugin-update-checker.php';
+
+$carspace_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+    'https://github.com/Samsiani/carspace-user-dashboard/',
+    __FILE__,
+    'carspace-dashboard'
+);
+$carspace_update_checker->getVcsApi()->enableReleaseAssets();
 
 /**
  * Bump the global response-cache version stamp.
