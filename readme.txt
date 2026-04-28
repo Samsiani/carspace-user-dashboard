@@ -4,7 +4,7 @@ Tags: dashboard, crm, woocommerce, react, spa, car-dealer
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.8.0
+Stable tag: 5.9.0
 License: Proprietary
 License URI: https://artcase.ge
 
@@ -19,6 +19,15 @@ Replaces the WooCommerce My Account dashboard with a self-contained React single
 * Auto-updates from GitHub Releases (no .org plugin directory needed)
 
 == Changelog ==
+
+= 5.9.0 =
+* React SPA bundle split. The single 1.6 MB main bundle is gone — first paint now downloads ~265 KB gzipped (main + react-vendor + vendor) instead of ~468 KB. Each route is its own chunk loaded on demand:
+  * `recharts` (~75 KB gz) only downloads when the dashboard opens
+  * `react-day-picker` + `date-fns` (~19 KB gz) only when a date filter mounts
+  * `@tanstack/react-table` (~14 KB gz) only on Cars / Invoices grids
+  * `react-hook-form` + `zod` (~28 KB gz) only on form pages
+* Vendor chunks are content-hashed and stable between releases — a code-only update means the browser re-downloads `main` (~38 KB gz) and the changed page chunks, not the entire app.
+* React source is now version-controlled at github.com/Samsiani/carspace-dashboard-source.
 
 = 5.8.0 =
 * DB v1.9: add `vin_lower` STORED generated column on `wp_carspace_invoice_items` plus a new compound index `(vin_lower, invoice_id)`. Every VIN lookup (in `get_by_vin`, `get_buyer_by_vin`, `batch_vin_lookup`, and `get_dashboard_stats`) was rewritten to compare against `vin_lower` directly, removing the `LOWER(it.vin)` function call that previously defeated the index. The old `idx_vin_invoice (vin, invoice_id)` is dropped — it's no longer referenced by any query and was costing write overhead on every invoice item insert.

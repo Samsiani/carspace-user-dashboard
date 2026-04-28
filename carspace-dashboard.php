@@ -2,7 +2,7 @@
 /*
 Plugin Name: Carspace User Dashboard
 Description: Car dealer CRM dashboard — React SPA with WordPress REST API backend
-Version: 5.8.0
+Version: 5.9.0
 Author: Carspace
 Text Domain: carspace-dashboard
 Domain Path: /languages
@@ -10,7 +10,7 @@ Domain Path: /languages
 
 defined('ABSPATH') || exit;
 
-define('CARSPACE_VERSION', '5.8.0');
+define('CARSPACE_VERSION', '5.9.0');
 define('CARSPACE_DB_VERSION', '1.5');
 define('CARSPACE_PATH', plugin_dir_path(__FILE__));
 define('CARSPACE_URL', plugin_dir_url(__FILE__));

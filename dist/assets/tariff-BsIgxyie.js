@@ -1,0 +1,1 @@
+const e=["base_price","price1","price2","price3","price4","price5","price6","price7","price8","price9","price10"],c={base_price:"Base Price",price1:"Price 1",price2:"Price 2",price3:"Price 3",price4:"Price 4",price5:"Price 5",price6:"Price 6",price7:"Price 7",price8:"Price 8",price9:"Price 9",price10:"Price 10"};export{e as T,c as a};
