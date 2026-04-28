@@ -181,10 +181,22 @@ class Carspace_Frontend {
 
     /**
      * Read and cache the Vite manifest.
+     *
+     * Three-tier cache: in-process static var → object cache (Redis if
+     * available, request-scoped otherwise) → file_get_contents fallback.
+     * Cache group is version-stamped so a plugin upgrade orphans the old
+     * entry automatically — no manual flush needed.
      */
     private static function get_manifest() {
         if (self::$manifest !== null) {
             return self::$manifest;
+        }
+
+        $cache_group = 'carspace_v' . CARSPACE_VERSION;
+        $cached = wp_cache_get('manifest', $cache_group);
+        if (is_array($cached)) {
+            self::$manifest = $cached;
+            return $cached;
         }
 
         $manifest_path = CARSPACE_PATH . 'dist/.vite/manifest.json';
@@ -198,6 +210,8 @@ class Carspace_Frontend {
         $decoded  = json_decode($contents, true);
 
         self::$manifest = is_array($decoded) ? $decoded : array();
+
+        wp_cache_set('manifest', self::$manifest, $cache_group, HOUR_IN_SECONDS);
 
         return self::$manifest;
     }

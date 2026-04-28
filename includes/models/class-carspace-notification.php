@@ -55,6 +55,10 @@ class Carspace_Notification {
             }
         }
 
+        if ($count > 0) {
+            self::bust_unread_count($user_ids);
+        }
+
         do_action('carspace_notification_created', $user_ids, $type, $count);
 
         return $count;
@@ -99,16 +103,46 @@ class Carspace_Notification {
     /**
      * Count unread notifications for a user.
      *
+     * Cached for 5 minutes per-user via transient. Every method that
+     * changes the unread state (create / mark_read / mark_all_read /
+     * delete) calls bust_unread_count() with the affected user IDs, so
+     * the badge stays accurate even with the cache active.
+     *
      * @param int $user_id
      * @return int
      */
     public static function count_unread($user_id) {
-        global $wpdb;
+        $user_id = intval($user_id);
+        if ($user_id <= 0) return 0;
 
-        return (int) $wpdb->get_var($wpdb->prepare(
+        $cache_key = 'cs_unread_' . $user_id;
+        $cached    = get_transient($cache_key);
+        if ($cached !== false) {
+            return (int) $cached;
+        }
+
+        global $wpdb;
+        $count = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}carspace_notifications WHERE user_id = %d AND status = 'unread'",
-            intval($user_id)
+            $user_id
         ));
+
+        set_transient($cache_key, $count, 5 * MINUTE_IN_SECONDS);
+
+        return $count;
+    }
+
+    /**
+     * Drop the cached unread-count for one or more users. Called from
+     * every method that changes their unread totals.
+     */
+    private static function bust_unread_count($user_ids) {
+        foreach ((array) $user_ids as $uid) {
+            $uid = intval($uid);
+            if ($uid > 0) {
+                delete_transient('cs_unread_' . $uid);
+            }
+        }
     }
 
     /**
@@ -130,6 +164,7 @@ class Carspace_Notification {
         );
 
         if ($affected) {
+            self::bust_unread_count($user_id);
             do_action('carspace_notification_marked_read', $id, $user_id);
         }
 
@@ -151,6 +186,7 @@ class Carspace_Notification {
         ));
 
         if ($count > 0) {
+            self::bust_unread_count($user_id);
             do_action('carspace_all_notifications_marked_read', $user_id, $count);
         }
 
@@ -167,11 +203,17 @@ class Carspace_Notification {
     public static function delete($id, $user_id) {
         global $wpdb;
 
-        return (bool) $wpdb->delete(
+        $deleted = (bool) $wpdb->delete(
             $wpdb->prefix . 'carspace_notifications',
             array('id' => intval($id), 'user_id' => intval($user_id)),
             array('%d', '%d')
         );
+
+        if ($deleted) {
+            self::bust_unread_count($user_id);
+        }
+
+        return $deleted;
     }
 
     /**
@@ -278,9 +320,26 @@ class Carspace_Notification {
         $ids         = array_map('intval', $ids);
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
 
-        return (int) $wpdb->query(
+        // Capture affected users with unread rows before delete, so we can
+        // invalidate their cached count. Only those with status='unread'
+        // matter — read rows don't move the counter.
+        $affected_users = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT user_id FROM {$table}
+                 WHERE id IN ({$placeholders}) AND status = 'unread'",
+                ...$ids
+            )
+        );
+
+        $deleted = (int) $wpdb->query(
             $wpdb->prepare("DELETE FROM {$table} WHERE id IN ({$placeholders})", ...$ids)
         );
+
+        if ($deleted && !empty($affected_users)) {
+            self::bust_unread_count($affected_users);
+        }
+
+        return $deleted;
     }
 
     /**

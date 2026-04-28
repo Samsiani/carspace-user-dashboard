@@ -484,6 +484,19 @@ class Carspace_REST_API {
         set_transient( $key, $data, self::CACHE_TTL );
     }
 
+    /**
+     * Wrap data in a WP_REST_Response with a private browser cache TTL.
+     * Used for admin-managed reference data (auction fees, title codes,
+     * locations) that rarely changes — saves the network round-trip on
+     * dashboard reload. `private` keeps shared CDNs out (responses are
+     * authenticated by cookie).
+     */
+    private static function reference_response( $data, $max_age = 300 ) {
+        $response = rest_ensure_response( $data );
+        $response->header( 'Cache-Control', 'private, max-age=' . (int) $max_age );
+        return $response;
+    }
+
     /* ------------------------------------------------------------------
      * Role helpers
      * ----------------------------------------------------------------*/
@@ -560,14 +573,20 @@ class Carspace_REST_API {
 
         $user_id  = get_current_user_id();
 
-        // Build WP_Query args for WC products
+        // Build WP_Query args for WC products.
+        // fields=ids + suppress implicit cache priming — we hydrate the
+        // products via wc_get_products() below and prime meta/term caches
+        // explicitly. WP_Query's own priming would duplicate that work.
         $args = array(
-            'post_type'      => 'product',
-            'post_status'    => 'publish',
-            'posts_per_page' => $per_page,
-            'paged'          => $page,
-            'orderby'        => 'date',
-            'order'          => 'DESC',
+            'post_type'              => 'product',
+            'post_status'            => 'publish',
+            'posts_per_page'         => $per_page,
+            'paged'                  => $page,
+            'orderby'                => 'date',
+            'order'                  => 'DESC',
+            'fields'                 => 'ids',
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
         );
 
         // All users see only their assigned cars
@@ -612,7 +631,8 @@ class Carspace_REST_API {
             remove_filter( 'posts_where', $sku_where );
         }
 
-        $product_ids = wp_list_pluck( $query->posts, 'ID' );
+        // With fields=ids, $query->posts is already an array of IDs.
+        $product_ids = array_map( 'intval', $query->posts );
 
         if ( empty( $product_ids ) ) {
             return new WP_REST_Response( array(
@@ -2579,11 +2599,11 @@ class Carspace_REST_API {
      * GET /transport-prices/locations — unique locations and ports.
      */
     public static function get_transport_locations() {
-        return new WP_REST_Response( array(
+        return self::reference_response( array(
             'locations'     => Carspace_Transport_Price::get_locations(),
             'loading_ports' => Carspace_Transport_Price::get_loading_ports(),
             'routes'        => Carspace_Transport_Price::get_routes(),
-        ), 200 );
+        ) );
     }
 
     /**
@@ -2800,10 +2820,10 @@ class Carspace_REST_API {
         $category = sanitize_text_field( $request->get_param( 'category' ) ?? '' );
 
         if ( $auction && $category ) {
-            return rest_ensure_response( Carspace_Auction_Fee::get_ranges( $auction, $category ) );
+            return self::reference_response( Carspace_Auction_Fee::get_ranges( $auction, $category ) );
         }
 
-        return rest_ensure_response( Carspace_Auction_Fee::get_all() );
+        return self::reference_response( Carspace_Auction_Fee::get_all() );
     }
 
     public static function save_auction_fee_range( WP_REST_Request $request ) {
@@ -2840,7 +2860,7 @@ class Carspace_REST_API {
     }
 
     public static function get_auction_fixed_fees() {
-        return rest_ensure_response( array(
+        return self::reference_response( array(
             'copart' => Carspace_Auction_Fee::get_fixed_fees( 'copart' ),
             'iaai'   => Carspace_Auction_Fee::get_fixed_fees( 'iaai' ),
         ) );
@@ -2910,7 +2930,7 @@ class Carspace_REST_API {
      * ----------------------------------------------------------------*/
 
     public static function get_title_codes() {
-        return rest_ensure_response( Carspace_Title_Code::get_all() );
+        return self::reference_response( Carspace_Title_Code::get_all() );
     }
 
     public static function save_title_code( WP_REST_Request $request ) {
