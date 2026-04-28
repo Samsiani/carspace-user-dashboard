@@ -4,7 +4,7 @@ Tags: dashboard, crm, woocommerce, react, spa, car-dealer
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.9.2
+Stable tag: 5.10.0
 License: Proprietary
 License URI: https://artcase.ge
 
@@ -19,6 +19,12 @@ Replaces the WooCommerce My Account dashboard with a self-contained React single
 * Auto-updates from GitHub Releases (no .org plugin directory needed)
 
 == Changelog ==
+
+= 5.10.0 =
+* Fix invoice round-trip: items / customer email / customer phone / customer company now persist correctly across save → reload → edit. The form's data shape was `{ description, quantity, unit_price, total, paid }` per item, but the DB schema only had `make`, `amount` etc., so on save the API stuffed `description` into `make` and `total` into `amount`, dropping `quantity` and `unit_price` entirely. On read, those fields came back as the legacy keys, so the edit form saw `description=undefined, quantity=undefined, unit_price=undefined` and rendered empty.
+* DB v2.0: add `description VARCHAR(255)`, `quantity DECIMAL(10,2)`, `unit_price DECIMAL(12,2)` to `wp_carspace_invoice_items`, and `customer_email VARCHAR(255)` to `wp_carspace_invoices`. Migration is idempotent — INFORMATION_SCHEMA-checked; existing rows keep their `make`/`amount` values, and `hydrate_invoice` falls back to those when the new columns are NULL so legacy invoices read coherently.
+* `update_invoice_endpoint` now also accepts `customer_phone` (writes `customer_personal_id`), `customer_email`, and `customer_company_name` — they were silently dropped before.
+* `hydrate_invoice` now returns `customer_email`, `customer_phone`, and per-item `description`, `quantity`, `unit_price`, `total` (in addition to the legacy `make`, `amount` keys for any caller still reading those).
 
 = 5.9.2 =
 * Dashboard chart: `<ResponsiveContainer width="100%" height="100%">` would log "width(-1) and height(-1) of chart should be greater than 0" on first render because parent height resolution from a `<CardContent>` wasn't immediate. Set the chart's height to a fixed `220` (matches the wrapper `h-[220px]`), so recharts no longer needs to ask the parent at all. Cosmetic console warning gone, charts render the same.

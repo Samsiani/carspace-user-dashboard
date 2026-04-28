@@ -66,6 +66,7 @@ class Carspace_Invoice {
                 'status'                => isset($data['status']) ? $data['status'] : 'unpaid',
                 'customer_type'         => isset($data['customer_type']) ? $data['customer_type'] : '',
                 'customer_name'         => isset($data['customer_name']) ? $data['customer_name'] : '',
+                'customer_email'        => isset($data['customer_email']) ? $data['customer_email'] : '',
                 'customer_company_name' => isset($data['customer_company_name']) ? $data['customer_company_name'] : '',
                 'customer_personal_id'  => isset($data['customer_personal_id']) ? $data['customer_personal_id'] : '',
                 'company_ident_number'  => isset($data['company_ident_number']) ? $data['company_ident_number'] : '',
@@ -79,7 +80,7 @@ class Carspace_Invoice {
                 'receipt_image_url'     => isset($data['receipt_image_url']) ? $data['receipt_image_url'] : '',
                 'owner_user_id'         => !empty($data['owner_user_id']) ? intval($data['owner_user_id']) : null,
             ),
-            array('%d','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s','%f','%f','%f','%d','%s','%d')
+            array('%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s','%f','%f','%f','%d','%s','%d')
         );
 
         $invoice_id = $wpdb->insert_id;
@@ -105,7 +106,7 @@ class Carspace_Invoice {
         global $wpdb;
 
         $allowed = array(
-            'invoice_type', 'status', 'customer_type', 'customer_name',
+            'invoice_type', 'status', 'customer_type', 'customer_name', 'customer_email',
             'customer_company_name', 'customer_personal_id', 'company_ident_number',
             'invoice_date', 'dealer_fee', 'dealer_fee_note', 'commission',
             'subtotal', 'amount_paid', 'receipt_image_id', 'receipt_image_url',
@@ -179,28 +180,35 @@ class Carspace_Invoice {
         $placeholders = array();
 
         foreach ($items as $i => $item) {
-            $sale_date = !empty($item['sale_date']) ? $item['sale_date'] : '';
-            $make      = isset($item['make']) ? $item['make'] : '';
-            $model     = isset($item['model']) ? $item['model'] : '';
-            $year      = !empty($item['year']) ? intval($item['year']) : 0;
-            $vin       = isset($item['vin']) ? $item['vin'] : '';
-            $amount    = isset($item['amount']) ? floatval($item['amount']) : 0;
-            $paid      = isset($item['paid']) ? floatval($item['paid']) : 0;
+            $sale_date   = !empty($item['sale_date']) ? $item['sale_date'] : '';
+            $make        = isset($item['make']) ? $item['make'] : '';
+            $model       = isset($item['model']) ? $item['model'] : '';
+            $year        = !empty($item['year']) ? intval($item['year']) : 0;
+            $vin         = isset($item['vin']) ? $item['vin'] : '';
+            $description = isset($item['description']) ? $item['description'] : '';
+            $quantity    = isset($item['quantity']) ? floatval($item['quantity']) : 1;
+            $unit_price  = isset($item['unit_price']) ? floatval($item['unit_price']) : 0;
+            $amount      = isset($item['amount']) ? floatval($item['amount']) : ($quantity * $unit_price);
+            $paid        = isset($item['paid']) ? floatval($item['paid']) : 0;
 
-            $placeholders[] = '(%d, %s, %s, %s, %d, %s, %f, %f, %d)';
+            $placeholders[] = '(%d, %s, %s, %s, %d, %s, %s, %f, %f, %f, %f, %d)';
             $values[] = $invoice_id;
             $values[] = $sale_date;
             $values[] = $make;
             $values[] = $model;
             $values[] = $year;
             $values[] = $vin;
+            $values[] = $description;
+            $values[] = $quantity;
+            $values[] = $unit_price;
             $values[] = $amount;
             $values[] = $paid;
             $values[] = $i;
         }
 
-        $sql = "INSERT INTO {$table} (invoice_id, sale_date, make, model, year, vin, amount, paid, sort_order) VALUES "
-             . implode(', ', $placeholders);
+        $sql = "INSERT INTO {$table}
+                (invoice_id, sale_date, make, model, year, vin, description, quantity, unit_price, amount, paid, sort_order)
+                VALUES " . implode(', ', $placeholders);
 
         $wpdb->query($wpdb->prepare($sql, $values));
     }

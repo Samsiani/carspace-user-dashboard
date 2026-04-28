@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 
 class Carspace_Activator {
 
-    const DB_VERSION = '1.9';
+    const DB_VERSION = '2.0';
 
     /**
      * Run on activation and on plugins_loaded when DB version changes.
@@ -21,6 +21,7 @@ class Carspace_Activator {
         self::add_indexes();
         self::drop_redundant_indexes();
         self::add_vin_lower_column();
+        self::add_invoice_form_columns();
         self::migrate_user_tiers();
         update_option('carspace_db_version', self::DB_VERSION);
     }
@@ -52,6 +53,7 @@ class Carspace_Activator {
             status          VARCHAR(20) DEFAULT 'unpaid',
             customer_type   VARCHAR(20),
             customer_name   VARCHAR(255),
+            customer_email  VARCHAR(255),
             customer_company_name VARCHAR(255),
             customer_personal_id  VARCHAR(50),
             company_ident_number  VARCHAR(50),
@@ -78,6 +80,9 @@ class Carspace_Activator {
             model       VARCHAR(100),
             year        SMALLINT UNSIGNED NULL,
             vin         VARCHAR(20),
+            description VARCHAR(255),
+            quantity    DECIMAL(10,2) DEFAULT 1,
+            unit_price  DECIMAL(12,2) DEFAULT 0,
             amount      DECIMAL(12,2) DEFAULT 0,
             paid        DECIMAL(12,2) DEFAULT 0,
             sort_order  TINYINT UNSIGNED DEFAULT 0,
@@ -297,6 +302,46 @@ class Carspace_Activator {
         ));
         if ($old_idx) {
             $wpdb->query("ALTER TABLE `{$table}` DROP INDEX idx_vin_invoice");
+        }
+    }
+
+    /**
+     * DB v2.0: store the form's actual item shape (description / quantity /
+     * unit_price) and add customer_email to invoices.
+     *
+     * The invoice form's data model evolved into generic line-items with
+     * description × quantity × unit_price = total, but the original schema
+     * only had `make`, `amount`, etc. Items that were saved came back missing
+     * description/quantity/unit_price and `total` (the form reads `total`,
+     * the API was returning `amount`), so the edit form looked empty.
+     *
+     * Idempotent — INFORMATION_SCHEMA-checked. Old rows with no description /
+     * quantity / unit_price are read-fallback'd in hydrate_invoice
+     * (description ←- make, quantity ← 1, unit_price ← amount).
+     */
+    private static function add_invoice_form_columns() {
+        global $wpdb;
+
+        $items_table    = $wpdb->prefix . 'carspace_invoice_items';
+        $invoices_table = $wpdb->prefix . 'carspace_invoices';
+
+        $additions = array(
+            array($items_table,    'description', "ADD COLUMN description VARCHAR(255) AFTER vin"),
+            array($items_table,    'quantity',    "ADD COLUMN quantity DECIMAL(10,2) DEFAULT 1 AFTER description"),
+            array($items_table,    'unit_price',  "ADD COLUMN unit_price DECIMAL(12,2) DEFAULT 0 AFTER quantity"),
+            array($invoices_table, 'customer_email', "ADD COLUMN customer_email VARCHAR(255) AFTER customer_name"),
+        );
+
+        foreach ($additions as $row) {
+            list($table, $column, $alter_clause) = $row;
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(1) FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                DB_NAME, $table, $column
+            ));
+            if (!$exists) {
+                $wpdb->query("ALTER TABLE `{$table}` {$alter_clause}");
+            }
         }
     }
 

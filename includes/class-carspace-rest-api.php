@@ -1078,18 +1078,30 @@ class Carspace_REST_API {
             return new WP_Error( 'create_failed', $post_id->get_error_message(), array( 'status' => 500 ) );
         }
 
-        // Map frontend items to DB items
+        // Map frontend items to DB items. The form's source of truth is
+        // (description, quantity, unit_price, paid) — `amount` is the line
+        // total kept in sync as quantity * unit_price for legacy code paths
+        // (dashboard stats balance, hydration fallback for pre-v2.0 rows).
+        // We also write `make` for the same legacy reason.
         $db_items = array();
         if ( ! empty( $body['items'] ) && is_array( $body['items'] ) ) {
             foreach ( $body['items'] as $item ) {
+                $description = isset( $item['description'] ) ? sanitize_text_field( $item['description'] ) : '';
+                $quantity    = isset( $item['quantity'] ) ? floatval( $item['quantity'] ) : 1;
+                $unit_price  = isset( $item['unit_price'] ) ? floatval( $item['unit_price'] ) : 0;
+                $line_total  = isset( $item['total'] ) ? floatval( $item['total'] ) : ( $quantity * $unit_price );
+
                 $db_items[] = array(
-                    'sale_date' => '',
-                    'make'      => isset( $item['description'] ) ? $item['description'] : '',
-                    'model'     => '',
-                    'year'      => null,
-                    'vin'       => isset( $body['car_vin'] ) ? $body['car_vin'] : '',
-                    'amount'    => isset( $item['total'] ) ? floatval( $item['total'] ) : ( ( floatval( $item['quantity'] ?? 1 ) ) * floatval( $item['unit_price'] ?? 0 ) ),
-                    'paid'      => isset( $item['paid'] ) ? floatval( $item['paid'] ) : 0,
+                    'sale_date'   => '',
+                    'make'        => $description, // legacy mirror, see note above
+                    'model'       => '',
+                    'year'        => null,
+                    'vin'         => isset( $body['car_vin'] ) ? $body['car_vin'] : '',
+                    'description' => $description,
+                    'quantity'    => $quantity,
+                    'unit_price'  => $unit_price,
+                    'amount'      => $line_total,
+                    'paid'        => isset( $item['paid'] ) ? floatval( $item['paid'] ) : 0,
                 );
             }
         }
@@ -1123,7 +1135,8 @@ class Carspace_REST_API {
             'status'                => $status,
             'customer_type'         => '',
             'customer_name'         => sanitize_text_field( $body['customer_name'] ?? '' ),
-            'customer_company_name' => '',
+            'customer_email'        => isset( $body['customer_email'] ) ? sanitize_email( $body['customer_email'] ) : '',
+            'customer_company_name' => sanitize_text_field( $body['customer_company_name'] ?? '' ),
             'customer_personal_id'  => sanitize_text_field( $body['customer_phone'] ?? '' ),
             'company_ident_number'  => '',
             'invoice_date'          => ! empty( $body['due_date'] ) ? sanitize_text_field( $body['due_date'] ) : current_time( 'Y-m-d' ),
@@ -1169,34 +1182,45 @@ class Carspace_REST_API {
             }
         }
 
-        // Update items if provided
+        // Update items if provided. Same shape as create_invoice.
         if ( isset( $body['items'] ) && is_array( $body['items'] ) ) {
             $db_items = array();
             foreach ( $body['items'] as $item ) {
+                $description = isset( $item['description'] ) ? sanitize_text_field( $item['description'] ) : '';
+                $quantity    = isset( $item['quantity'] ) ? floatval( $item['quantity'] ) : 1;
+                $unit_price  = isset( $item['unit_price'] ) ? floatval( $item['unit_price'] ) : 0;
+                $line_total  = isset( $item['total'] ) ? floatval( $item['total'] ) : ( $quantity * $unit_price );
+
                 $db_items[] = array(
-                    'sale_date' => '',
-                    'make'      => isset( $item['description'] ) ? $item['description'] : '',
-                    'model'     => '',
-                    'year'      => null,
-                    'vin'       => isset( $body['car_vin'] ) ? $body['car_vin'] : '',
-                    'amount'    => isset( $item['total'] ) ? floatval( $item['total'] ) : ( floatval( $item['quantity'] ?? 1 ) * floatval( $item['unit_price'] ?? 0 ) ),
-                    'paid'      => isset( $item['paid'] ) ? floatval( $item['paid'] ) : 0,
+                    'sale_date'   => '',
+                    'make'        => $description, // legacy mirror
+                    'model'       => '',
+                    'year'        => null,
+                    'vin'         => isset( $body['car_vin'] ) ? $body['car_vin'] : '',
+                    'description' => $description,
+                    'quantity'    => $quantity,
+                    'unit_price'  => $unit_price,
+                    'amount'      => $line_total,
+                    'paid'        => isset( $item['paid'] ) ? floatval( $item['paid'] ) : 0,
                 );
             }
             Carspace_Invoice::update_items( $post_id, $db_items );
         }
 
-        // Build update data
+        // Build update data — every form field that the user can edit.
         $update = array();
 
-        if ( isset( $body['type'] ) )          $update['invoice_type'] = sanitize_text_field( $body['type'] );
-        if ( isset( $body['status'] ) )        $update['status'] = sanitize_text_field( $body['status'] );
-        if ( isset( $body['customer_name'] ) ) $update['customer_name'] = sanitize_text_field( $body['customer_name'] );
-        if ( isset( $body['dealer_fee'] ) )    $update['dealer_fee'] = floatval( $body['dealer_fee'] );
-        if ( isset( $body['commission'] ) )    $update['commission'] = floatval( $body['commission'] );
-        if ( isset( $body['amount_paid'] ) )   $update['amount_paid'] = floatval( $body['amount_paid'] );
-        if ( isset( $body['notes'] ) )         $update['dealer_fee_note'] = sanitize_text_field( $body['notes'] );
-        if ( isset( $body['due_date'] ) )      $update['invoice_date'] = sanitize_text_field( $body['due_date'] );
+        if ( isset( $body['type'] ) )                  $update['invoice_type']          = sanitize_text_field( $body['type'] );
+        if ( isset( $body['status'] ) )                $update['status']                = sanitize_text_field( $body['status'] );
+        if ( isset( $body['customer_name'] ) )         $update['customer_name']         = sanitize_text_field( $body['customer_name'] );
+        if ( isset( $body['customer_email'] ) )        $update['customer_email']        = sanitize_email( $body['customer_email'] );
+        if ( isset( $body['customer_phone'] ) )        $update['customer_personal_id']  = sanitize_text_field( $body['customer_phone'] );
+        if ( isset( $body['customer_company_name'] ) ) $update['customer_company_name'] = sanitize_text_field( $body['customer_company_name'] );
+        if ( isset( $body['dealer_fee'] ) )            $update['dealer_fee']            = floatval( $body['dealer_fee'] );
+        if ( isset( $body['commission'] ) )            $update['commission']            = floatval( $body['commission'] );
+        if ( isset( $body['amount_paid'] ) )           $update['amount_paid']           = floatval( $body['amount_paid'] );
+        if ( isset( $body['notes'] ) )                 $update['dealer_fee_note']       = sanitize_text_field( $body['notes'] );
+        if ( isset( $body['due_date'] ) )              $update['invoice_date']          = sanitize_text_field( $body['due_date'] );
 
         if ( ! empty( $update ) ) {
             Carspace_Invoice::update( $post_id, $update );
@@ -1991,15 +2015,34 @@ class Carspace_REST_API {
         $car_title = '';
 
         foreach ( $raw_items as $it ) {
+            $line_total  = isset( $it->amount ) ? (float) $it->amount : 0;
+            // Fallbacks for invoices created before DB v2.0 — those rows
+            // had description in `make`, no quantity/unit_price columns at
+            // all. Read-side compatibility: synthesize a 1×total line so
+            // the form has something coherent to display.
+            $description = ( isset( $it->description ) && $it->description !== '' )
+                ? $it->description
+                : ( isset( $it->make ) ? $it->make : '' );
+            $quantity    = ( isset( $it->quantity ) && $it->quantity !== null )
+                ? (float) $it->quantity
+                : 1;
+            $unit_price  = ( isset( $it->unit_price ) && $it->unit_price !== null )
+                ? (float) $it->unit_price
+                : ( $quantity > 0 ? $line_total / $quantity : 0 );
+
             $items[] = array(
-                'id'        => isset( $it->id ) ? (string) $it->id : '',
-                'sale_date' => isset( $it->sale_date ) ? $it->sale_date : '',
-                'make'      => isset( $it->make ) ? $it->make : '',
-                'model'     => isset( $it->model ) ? $it->model : '',
-                'year'      => isset( $it->year ) ? (int) $it->year : 0,
-                'vin'       => isset( $it->vin ) ? $it->vin : '',
-                'amount'    => isset( $it->amount ) ? (float) $it->amount : 0,
-                'paid'      => isset( $it->paid ) ? (float) $it->paid : 0,
+                'id'          => isset( $it->id ) ? (string) $it->id : '',
+                'sale_date'   => isset( $it->sale_date ) ? $it->sale_date : '',
+                'make'        => isset( $it->make ) ? $it->make : '',
+                'model'       => isset( $it->model ) ? $it->model : '',
+                'year'        => isset( $it->year ) ? (int) $it->year : 0,
+                'vin'         => isset( $it->vin ) ? $it->vin : '',
+                'description' => $description,
+                'quantity'    => $quantity,
+                'unit_price'  => $unit_price,
+                'total'       => $line_total,
+                'amount'      => $line_total, // kept for any caller using the legacy key
+                'paid'        => isset( $it->paid ) ? (float) $it->paid : 0,
             );
 
             // Use first item's VIN as the car_vin
@@ -2063,8 +2106,10 @@ class Carspace_REST_API {
             'car_vin'          => $car_vin,
             'car_title'        => $car_title,
             'customer_name'    => $customer_name,
-            'customer_email'   => '',
-            'customer_phone'   => '',
+            'customer_email'   => isset( $row->customer_email ) ? $row->customer_email : '',
+            // customer_personal_id has been used as the phone field for years —
+            // see create_invoice + update_invoice_endpoint mapping.
+            'customer_phone'   => isset( $row->customer_personal_id ) ? $row->customer_personal_id : '',
             'items'            => $items,
             'subtotal'         => round( $subtotal, 2 ),
             'dealer_fee'       => round( $dealer_fee, 2 ),
