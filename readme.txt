@@ -4,7 +4,7 @@ Tags: dashboard, crm, woocommerce, react, spa, car-dealer
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 5.10.0
+Stable tag: 5.11.0
 License: Proprietary
 License URI: https://artcase.ge
 
@@ -19,6 +19,11 @@ Replaces the WooCommerce My Account dashboard with a self-contained React single
 * Auto-updates from GitHub Releases (no .org plugin directory needed)
 
 == Changelog ==
+
+= 5.11.0 =
+* Persist `dealer_fee_paid` and `commission_paid` per invoice. The form had inputs for "how much of the dealer fee / commission has been paid" since v5.x, but the backend silently dropped them on save and `hydrate_invoice` returned `0` hardcoded — same data-loss pattern as v5.10.0's items / customer fields. Adds DB v2.1: two new `DECIMAL(12,2) DEFAULT 0` columns on `wp_carspace_invoices`, idempotent migration, and full create / update / hydrate wiring.
+* Redesign the print invoice (`InvoicePrint`) to match the dashboard's visual language — Geist + Noto Sans Georgian font stack, restrained slate typography, the platform's blue accent on the vehicle row icon, lighter card backgrounds with the same 10 px radius the dashboard uses. Adds `@page A4` margins, hides empty sections (no vehicle row when there's no car, no notes block when the field is empty). The previous design used a heavy dark-gray brand mark and `Inter` — both replaced.
+* Bundle Noto Sans Georgian (variable) so Mkhedruli characters render correctly in the dashboard and the printed invoice without any external CDN.
 
 = 5.10.0 =
 * Fix invoice round-trip: items / customer email / customer phone / customer company now persist correctly across save → reload → edit. The form's data shape was `{ description, quantity, unit_price, total, paid }` per item, but the DB schema only had `make`, `amount` etc., so on save the API stuffed `description` into `make` and `total` into `amount`, dropping `quantity` and `unit_price` entirely. On read, those fields came back as the legacy keys, so the edit form saw `description=undefined, quantity=undefined, unit_price=undefined` and rendered empty.

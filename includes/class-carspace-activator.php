@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 
 class Carspace_Activator {
 
-    const DB_VERSION = '2.0';
+    const DB_VERSION = '2.1';
 
     /**
      * Run on activation and on plugins_loaded when DB version changes.
@@ -58,11 +58,13 @@ class Carspace_Activator {
             customer_personal_id  VARCHAR(50),
             company_ident_number  VARCHAR(50),
             invoice_date    DATE NULL,
-            dealer_fee      DECIMAL(12,2) DEFAULT 0,
-            dealer_fee_note TEXT,
-            commission      DECIMAL(12,2) DEFAULT 0,
-            subtotal        DECIMAL(12,2) DEFAULT 0,
-            amount_paid     DECIMAL(12,2) DEFAULT 0,
+            dealer_fee       DECIMAL(12,2) DEFAULT 0,
+            dealer_fee_paid  DECIMAL(12,2) DEFAULT 0,
+            dealer_fee_note  TEXT,
+            commission       DECIMAL(12,2) DEFAULT 0,
+            commission_paid  DECIMAL(12,2) DEFAULT 0,
+            subtotal         DECIMAL(12,2) DEFAULT 0,
+            amount_paid      DECIMAL(12,2) DEFAULT 0,
             receipt_image_id  BIGINT UNSIGNED NULL,
             receipt_image_url VARCHAR(500),
             owner_user_id   BIGINT UNSIGNED NULL,
@@ -326,10 +328,14 @@ class Carspace_Activator {
         $invoices_table = $wpdb->prefix . 'carspace_invoices';
 
         $additions = array(
-            array($items_table,    'description', "ADD COLUMN description VARCHAR(255) AFTER vin"),
-            array($items_table,    'quantity',    "ADD COLUMN quantity DECIMAL(10,2) DEFAULT 1 AFTER description"),
-            array($items_table,    'unit_price',  "ADD COLUMN unit_price DECIMAL(12,2) DEFAULT 0 AFTER quantity"),
-            array($invoices_table, 'customer_email', "ADD COLUMN customer_email VARCHAR(255) AFTER customer_name"),
+            array($items_table,    'description',     "ADD COLUMN description VARCHAR(255) AFTER vin"),
+            array($items_table,    'quantity',        "ADD COLUMN quantity DECIMAL(10,2) DEFAULT 1 AFTER description"),
+            array($items_table,    'unit_price',      "ADD COLUMN unit_price DECIMAL(12,2) DEFAULT 0 AFTER quantity"),
+            array($invoices_table, 'customer_email',  "ADD COLUMN customer_email VARCHAR(255) AFTER customer_name"),
+            // DB v2.1 — dealer fee / commission per-fee paid amounts. Form had
+            // these inputs since v5.x but backend silently dropped them.
+            array($invoices_table, 'dealer_fee_paid', "ADD COLUMN dealer_fee_paid DECIMAL(12,2) DEFAULT 0 AFTER dealer_fee"),
+            array($invoices_table, 'commission_paid', "ADD COLUMN commission_paid DECIMAL(12,2) DEFAULT 0 AFTER commission"),
         );
 
         foreach ($additions as $row) {

@@ -72,15 +72,17 @@ class Carspace_Invoice {
                 'company_ident_number'  => isset($data['company_ident_number']) ? $data['company_ident_number'] : '',
                 'invoice_date'          => !empty($data['invoice_date']) ? $data['invoice_date'] : null,
                 'dealer_fee'            => isset($data['dealer_fee']) ? floatval($data['dealer_fee']) : 0,
+                'dealer_fee_paid'       => isset($data['dealer_fee_paid']) ? floatval($data['dealer_fee_paid']) : 0,
                 'dealer_fee_note'       => isset($data['dealer_fee_note']) ? $data['dealer_fee_note'] : '',
                 'commission'            => isset($data['commission']) ? floatval($data['commission']) : 0,
+                'commission_paid'       => isset($data['commission_paid']) ? floatval($data['commission_paid']) : 0,
                 'subtotal'              => isset($data['subtotal']) ? floatval($data['subtotal']) : 0,
                 'amount_paid'           => isset($data['amount_paid']) ? floatval($data['amount_paid']) : 0,
                 'receipt_image_id'      => !empty($data['receipt_image_id']) ? intval($data['receipt_image_id']) : null,
                 'receipt_image_url'     => isset($data['receipt_image_url']) ? $data['receipt_image_url'] : '',
                 'owner_user_id'         => !empty($data['owner_user_id']) ? intval($data['owner_user_id']) : null,
             ),
-            array('%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%f','%s','%f','%f','%f','%d','%s','%d')
+            array('%d','%s','%s','%s','%s','%s','%s','%s','%s','%s','%f','%f','%s','%f','%f','%f','%f','%d','%s','%d')
         );
 
         $invoice_id = $wpdb->insert_id;
@@ -108,7 +110,8 @@ class Carspace_Invoice {
         $allowed = array(
             'invoice_type', 'status', 'customer_type', 'customer_name', 'customer_email',
             'customer_company_name', 'customer_personal_id', 'company_ident_number',
-            'invoice_date', 'dealer_fee', 'dealer_fee_note', 'commission',
+            'invoice_date', 'dealer_fee', 'dealer_fee_paid', 'dealer_fee_note',
+            'commission', 'commission_paid',
             'subtotal', 'amount_paid', 'receipt_image_id', 'receipt_image_url',
             'owner_user_id',
         );
@@ -121,7 +124,7 @@ class Carspace_Invoice {
                 continue;
             }
             $update[$key] = $value;
-            if (in_array($key, array('dealer_fee', 'commission', 'subtotal', 'amount_paid'), true)) {
+            if (in_array($key, array('dealer_fee', 'dealer_fee_paid', 'commission', 'commission_paid', 'subtotal', 'amount_paid'), true)) {
                 $formats[] = '%f';
             } elseif (in_array($key, array('post_id', 'receipt_image_id', 'owner_user_id'), true)) {
                 $formats[] = '%d';

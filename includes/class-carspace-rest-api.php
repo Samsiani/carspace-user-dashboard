@@ -1113,10 +1113,12 @@ class Carspace_REST_API {
             $items_paid  += $it['paid'];
         }
 
-        $dealer_fee  = floatval( $body['dealer_fee'] ?? 0 );
-        $commission  = floatval( $body['commission'] ?? 0 );
-        $amount_paid = floatval( $body['amount_paid'] ?? 0 );
-        $subtotal    = $items_total + $dealer_fee + $commission;
+        $dealer_fee      = floatval( $body['dealer_fee'] ?? 0 );
+        $dealer_fee_paid = floatval( $body['dealer_fee_paid'] ?? 0 );
+        $commission      = floatval( $body['commission'] ?? 0 );
+        $commission_paid = floatval( $body['commission_paid'] ?? 0 );
+        $amount_paid     = floatval( $body['amount_paid'] ?? 0 );
+        $subtotal        = $items_total + $dealer_fee + $commission;
 
         // Determine status
         $status = 'unpaid';
@@ -1141,8 +1143,10 @@ class Carspace_REST_API {
             'company_ident_number'  => '',
             'invoice_date'          => ! empty( $body['due_date'] ) ? sanitize_text_field( $body['due_date'] ) : current_time( 'Y-m-d' ),
             'dealer_fee'            => $dealer_fee,
+            'dealer_fee_paid'       => $dealer_fee_paid,
             'dealer_fee_note'       => sanitize_text_field( $body['notes'] ?? '' ),
             'commission'            => $commission,
+            'commission_paid'       => $commission_paid,
             'subtotal'              => $subtotal,
             'amount_paid'           => $amount_paid,
             'owner_user_id'         => $user_id,
@@ -1217,7 +1221,9 @@ class Carspace_REST_API {
         if ( isset( $body['customer_phone'] ) )        $update['customer_personal_id']  = sanitize_text_field( $body['customer_phone'] );
         if ( isset( $body['customer_company_name'] ) ) $update['customer_company_name'] = sanitize_text_field( $body['customer_company_name'] );
         if ( isset( $body['dealer_fee'] ) )            $update['dealer_fee']            = floatval( $body['dealer_fee'] );
+        if ( isset( $body['dealer_fee_paid'] ) )       $update['dealer_fee_paid']       = floatval( $body['dealer_fee_paid'] );
         if ( isset( $body['commission'] ) )            $update['commission']            = floatval( $body['commission'] );
+        if ( isset( $body['commission_paid'] ) )       $update['commission_paid']       = floatval( $body['commission_paid'] );
         if ( isset( $body['amount_paid'] ) )           $update['amount_paid']           = floatval( $body['amount_paid'] );
         if ( isset( $body['notes'] ) )                 $update['dealer_fee_note']       = sanitize_text_field( $body['notes'] );
         if ( isset( $body['due_date'] ) )              $update['invoice_date']          = sanitize_text_field( $body['due_date'] );
@@ -2059,12 +2065,14 @@ class Carspace_REST_API {
             $items_paid  += (float) ( $it->paid ?? 0 );
         }
 
-        $dealer_fee  = (float) ( $row->dealer_fee ?? 0 );
-        $commission  = (float) ( $row->commission ?? 0 );
-        $subtotal    = (float) ( $row->subtotal ?? 0 );
-        $amount_paid = (float) ( $row->amount_paid ?? 0 );
-        $total       = $items_total + $dealer_fee + $commission;
-        $balance_due = $total - $amount_paid;
+        $dealer_fee      = (float) ( $row->dealer_fee ?? 0 );
+        $dealer_fee_paid = (float) ( $row->dealer_fee_paid ?? 0 );
+        $commission      = (float) ( $row->commission ?? 0 );
+        $commission_paid = (float) ( $row->commission_paid ?? 0 );
+        $subtotal        = (float) ( $row->subtotal ?? 0 );
+        $amount_paid     = (float) ( $row->amount_paid ?? 0 );
+        $total           = $items_total + $dealer_fee + $commission;
+        $balance_due     = $total - $amount_paid;
 
         // Customer display name
         $customer_name = '';
@@ -2113,9 +2121,9 @@ class Carspace_REST_API {
             'items'            => $items,
             'subtotal'         => round( $subtotal, 2 ),
             'dealer_fee'       => round( $dealer_fee, 2 ),
-            'dealer_fee_paid'  => 0,
+            'dealer_fee_paid'  => round( $dealer_fee_paid, 2 ),
             'commission'       => round( $commission, 2 ),
-            'commission_paid'  => 0,
+            'commission_paid'  => round( $commission_paid, 2 ),
             'total'            => round( $total, 2 ),
             'amount_paid'      => round( $amount_paid, 2 ),
             'balance_due'      => round( $balance_due, 2 ),
